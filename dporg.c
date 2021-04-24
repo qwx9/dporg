@@ -45,6 +45,8 @@ threadmain(int argc, char **argv)
 	case 'd': prefix = EARGF(usage()); break;
 	default: usage();
 	}ARGEND
+	if(initdraw(nil, nil, "dporg") < 0)
+		sysfatal("initdraw: %r");
 	initfs();
 	threadexits(nil);
 }

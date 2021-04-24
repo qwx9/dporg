@@ -1,12 +1,14 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
+#include <draw.h>
 #include "dat.h"
 #include "fns.h"
 
 s32int sintab[256];
 int npal;
 u32int *pal;
+Pic pics[PCend];
 
 static Biobuf *
 eopen(char *s, int mode)
@@ -64,7 +66,60 @@ get32(Biobuf *bf)
 }
 
 static void
-readpal(void)
+loadpic(char *name, Pic *pic)
+{
+	int fd, n, m, dx, dy;
+	uchar *b, *s;
+	u32int *p;
+	Image *i;
+
+	if((fd = open(name, OREAD)) < 0)
+		sysfatal("loadpic: %r");
+	if((i = readimage(display, fd, 0)) == nil)
+		sysfatal("readimage: %r");
+	close(fd);
+	if(i->chan != RGBA32)
+		sysfatal("loadpic %s: inappropriate image format", name);
+	dx = Dx(i->r);
+	dy = Dy(i->r);
+	n = dx * dy;
+	p = emalloc(n * sizeof *p);
+	pic->p = p;
+	pic->w = dx;
+	pic->h = dy;
+	m = i->depth / 8;
+	b = emalloc(n * m);
+	unloadimage(i, i->r, b, n * m);
+	freeimage(i);
+	s = b;
+	while(n-- > 0){
+		*p++ = s[0] << 24 | s[3] << 16 | s[2] << 8 | s[1];
+		s += m;
+	}
+	free(b);
+}
+
+static void
+loadpics(void)
+{
+	loadpic("a.bit", pics + PCfont);
+	loadpic("b.bit", pics + PCarrow);
+	loadpic("c.bit", pics + PCspace);
+	loadpic("d.bit", pics + PCgrid);
+	loadpic("e.bit", pics + PCplanets);
+	loadpic("f.bit", pics + PCship);
+	loadpic("k.bit", pics + PChud);
+	loadpic("l.bit", pics + PCface);
+	loadpic("m.bit", pics + PCammo);
+	loadpic("n.bit", pics + PChit);
+	loadpic("o.bit", pics + PCdir);
+	loadpic("p.bit", pics + PCcur);
+	loadpic("q.bit", pics + PCscroll);
+	loadpic("r.bit", pics + PCgibs);
+}
+
+static void
+loadpal(void)
 {
 	int n;
 	u8int r, g, b;
@@ -82,13 +137,13 @@ readpal(void)
 		g = g << 2 | g >> 4;
 		b = n >> 11 & 0x1f;
 		b = b << 3 | b >> 2;
-		*p = r << 16 | g << 8 | b;
+		*p = 0xff << 24 | r << 16 | g << 8 | b;
 	}
 	Bterm(bf);
 }
 
 static void
-readsintab(void)
+loadsintab(void)
 {
 	Biobuf *bf;
 	s32int *s;
@@ -105,8 +160,9 @@ initfs(void)
 	rfork(RFNAMEG);
 	if(bind(".", prefix, MBEFORE|MCREATE) == -1 || chdir(prefix) < 0)
 		fprint(2, "initfs: %r\n");
-	readsintab();
-	readpal();
+	loadsintab();
+	loadpal();
+	loadpics();
 }
 
 // grids: 32/256/2048
@@ -119,5 +175,4 @@ initfs(void)
 // map bsp + str (on demand, with shim load gauge)
 // a.map
 // base.str
-// .bit (r8g8b8a8)
 // + old project code
