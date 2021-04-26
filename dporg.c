@@ -9,6 +9,29 @@
 
 char *prefix = "/sys/games/lib/dporg";
 
+enum{
+	Kfire = 'x',
+	K↑ = Kup,
+	K↓ = Kdown,
+	K← = Kleft,
+	K→ = Kright,
+};
+
+static Keyboardctl *kc;
+static Mousectl *mc;
+
+int
+max(int a, int b)
+{
+	return a > b ? a : b;
+}
+
+int
+min(int a, int b)
+{
+	return a < b ? a : b;
+}
+
 void *
 erealloc(void *p, ulong n, ulong oldn)
 {
@@ -34,19 +57,61 @@ emalloc(ulong n)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-d datadir]\n", argv0);
+	fprint(2, "usage: %s [-m datadir]\n", argv0);
 	threadexits("usage");
 }
 
 void
 threadmain(int argc, char **argv)
 {
+	Rune r;
+	Mouse mo;
+
 	ARGBEGIN{
-	case 'd': prefix = EARGF(usage()); break;
+	case 'm': prefix = EARGF(usage()); break;
 	default: usage();
 	}ARGEND
-	if(initdraw(nil, nil, "dporg") < 0)
-		sysfatal("initdraw: %r");
 	initfs();
-	threadexits(nil);
+	initfb();
+	if((kc = initkeyboard(nil)) == nil)
+		sysfatal("initkeyboard: %r");
+	if((mc = initmouse(nil, screen)) == nil)
+		sysfatal("initmouse: %r");
+	initfsm();
+	enum{
+		Aresize,
+		Amouse,
+		Akbd,
+	};
+	Alt a[] = {
+		{mc->resizec, nil, CHANRCV},
+		{mc->c, &mc->Mouse, CHANRCV},
+		{kc->c, &r, CHANRCV},
+		{nil, nil, CHANEND}
+	};
+	for(;;){
+		switch(alt(a)){
+		case Aresize:
+			if(getwindow(display, Refnone) < 0)
+				sysfatal("resize failed: %r");
+			mo = mc->Mouse;
+			resetfb(1);
+			break;
+		case Amouse:
+			if(eqpt(mo.xy, ZP))
+				mo = mc->Mouse;
+			break;
+		case Akbd:
+			switch(r){
+			case Kdel:
+			case 'q': threadexitsall(nil);
+			case Kfire: break;
+			case K↑: break;
+			case K↓: break;
+			case K←: break;
+			case K→: break;
+			}
+			break;
+		}
+	}
 }

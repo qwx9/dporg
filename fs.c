@@ -6,9 +6,6 @@
 #include "fns.h"
 
 s32int sintab[256];
-int npal;
-u32int *pal;
-Pic pics[PCend];
 
 static Biobuf *
 eopen(char *s, int mode)
@@ -99,7 +96,7 @@ loadpic(char *name, Pic *pic)
 	free(b);
 }
 
-static void
+void
 loadpics(void)
 {
 	loadpic("a.bit", pics + PCfont);
@@ -162,7 +159,6 @@ initfs(void)
 		fprint(2, "initfs: %r\n");
 	loadsintab();
 	loadpal();
-	loadpics();
 }
 
 // grids: 32/256/2048
