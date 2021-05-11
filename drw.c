@@ -4,16 +4,60 @@
 #include "dat.h"
 #include "fns.h"
 
-static u32int fb[Vwidth * Vheight];
-
 int npal;
 u32int *pal;
-Pic pics[PCend];
+Pic pics[PCend], canvas;
+
+static u32int fb[Vw * Vfullh];
 
 static int scale, fbsz;
 static Rectangle fbsr;
 static Image *fbs;
 static u32int *fbsbuf;
+
+void
+scrollpic(Pic *pp, int Δx)
+{
+	// FIXME: scroll pic into canvas
+	// scrollpic(&pics[PCspace], tc / scrollΔtc % pics[PCspace].w);
+	// instead we just pass tc / scrollΔtc and do MOD here with pp->w
+	USED(pp,Δx);
+}
+
+void
+drawstr(int x, int y, char *s)
+{
+	// FIXME
+	USED(x,y,s);
+}
+
+void
+drawsubstr(int x, int y, char *s, char *e)
+{
+	// FIXME
+	USED(x,y,s,e);
+}
+
+void
+drawline(int x, int y, int w, int h, u32int col)
+{
+	// FIXME
+	USED(x,y,w,h,col);
+}
+
+void
+drawpic(int x, int y, Pic *pp)
+{
+	// FIXME: draw pp at x,y
+	USED(x,y,pp);
+}
+
+void
+drawfill(u32int col)
+{
+	// FIXME: fill window/vis area/rect with color
+	USED(col);
+}
 
 static void
 drawscaled(void)
@@ -55,7 +99,7 @@ drawfb(void)
 		r = fbsr;
 		while(r.min.y < fbsr.max.y){
 			r.max.y = r.min.y + scale;
-			p += loadimage(fbs, fbs->r, p, fbsz / Vheight);
+			p += loadimage(fbs, fbs->r, p, fbsz / Vfullh);
 			draw(screen, r, fbs, nil, ZP);
 			r.min.y = r.max.y;
 		}
@@ -68,17 +112,17 @@ resetfb(int paint)
 {
 	Point o, p;
 
-	scale = min(Dx(screen->r) / Vwidth, Dy(screen->r) / Vheight);
+	scale = min(Dx(screen->r) / Vw, Dy(screen->r) / Vfullh);
 	if(scale <= 0)
 		scale = 1;
 	else if(scale > 12)
 		scale = 12;
 	o = divpt(addpt(screen->r.min, screen->r.max), 2);
-	p = Pt(Vwidth / 2 * scale, Vheight / 2 * scale);
+	p = Pt(Vw / 2 * scale, Vfullh / 2 * scale);
 	fbsr = Rpt(subpt(o, p), addpt(o, p));
-	fbsz = Vwidth * Vheight * scale * sizeof *fbsbuf;
+	fbsz = Vw * Vfullh * scale * sizeof *fbsbuf;
 	freeimage(fbs);
-	if((fbs = allocimage(display, Rect(0,0,Vwidth*scale,scale==1? Vheight : 1),
+	if((fbs = allocimage(display, Rect(0,0,Vw*scale,scale==1? Vfullh : 1),
 		XRGB32, scale > 1, DBlack)) == nil)
 		sysfatal("allocimage: %r");
 	free(fbsbuf);

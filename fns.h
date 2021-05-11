@@ -1,4 +1,14 @@
+void	enterloadmap(void);
+void	enterintro(void);
+int	advclock(void);
+void	setfsm(void (*)(void), void (*)(Rune));
 void	initfsm(void);
+void	scrollpic(Pic*, int);
+void	drawsubstr(int, int, char*, char*);
+void	drawstr(int, int, char*);
+void	drawline(int, int, int, int, u32int);
+void	drawpic(int, int, Pic*);
+void	drawfill(u32int);
 void	drawfb(void);
 void	resetfb(int);
 void	initfb(void);

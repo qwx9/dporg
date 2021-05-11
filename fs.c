@@ -6,6 +6,7 @@
 #include "fns.h"
 
 s32int sintab[256];
+char **basestr;
 
 static Biobuf *
 eopen(char *s, int mode)
@@ -80,6 +81,8 @@ loadpic(char *name, Pic *pic)
 	dx = Dx(i->r);
 	dy = Dy(i->r);
 	n = dx * dy;
+	if(dx * dy > Vw * Vfullh)
+		sysfatal("loadpic %s: inappropriate image size", name);
 	p = emalloc(n * sizeof *p);
 	pic->p = p;
 	pic->w = dx;
@@ -113,6 +116,9 @@ loadpics(void)
 	loadpic("p.bit", pics + PCcur);
 	loadpic("q.bit", pics + PCscroll);
 	loadpic("r.bit", pics + PCgibs);
+	canvas.p = emalloc(Vw * Vfullh * sizeof *canvas.p);
+	canvas.w = Vw;
+	canvas.h = Vfullh;
 }
 
 static void
@@ -139,6 +145,41 @@ loadpal(void)
 	Bterm(bf);
 }
 
+static char **
+loadstr(char *name, int *nel)
+{
+	int n;
+	char **s, **p, **e, *q;
+	Biobuf *bf;
+
+	bf = eopen(name, OREAD);
+	n = get16(bf);
+	s = emalloc(n * sizeof *p);
+	e = s + n;
+	*nel = n;
+	for(p=s; p<e; p++){
+		n = get16(bf);
+		*p = emalloc(n + 1);
+		eread(bf, *p, n);
+		/* FIXME: not always? */
+		q = *p;
+		while((q = strchr(q, '|')) != nil)
+			*q = '\n';
+	}
+	Bterm(bf);
+	return s;
+}
+
+static void
+loadbasestr(void)
+{
+	int nel;
+
+	basestr = loadstr("base.str", &nel);
+	if(nel != BSend)
+		sysfatal("loadbasestr: inconsistent base.str file: entries %d not %d", nel, BSend);
+}
+
 static void
 loadsintab(void)
 {
@@ -159,6 +200,7 @@ initfs(void)
 		fprint(2, "initfs: %r\n");
 	loadsintab();
 	loadpal();
+	loadbasestr();
 }
 
 // grids: 32/256/2048

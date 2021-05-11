@@ -9,14 +9,6 @@
 
 char *prefix = "/sys/games/lib/dporg";
 
-enum{
-	Kfire = 'x',
-	K↑ = Kup,
-	K↓ = Kdown,
-	K← = Kleft,
-	K→ = Kright,
-};
-
 static Keyboardctl *kc;
 static Mousectl *mc;
 
@@ -77,17 +69,19 @@ threadmain(int argc, char **argv)
 		sysfatal("initkeyboard: %r");
 	if((mc = initmouse(nil, screen)) == nil)
 		sysfatal("initmouse: %r");
+	srand(time(nil));
 	initfsm();
 	enum{
 		Aresize,
 		Amouse,
 		Akbd,
+		Aend,
 	};
 	Alt a[] = {
-		{mc->resizec, nil, CHANRCV},
-		{mc->c, &mc->Mouse, CHANRCV},
-		{kc->c, &r, CHANRCV},
-		{nil, nil, CHANEND}
+		[Aresize] {mc->resizec, nil, CHANRCV},
+		[Amouse] {mc->c, &mc->Mouse, CHANRCV},
+		[Akbd] {kc->c, &r, CHANRCV},
+		[Aend] {nil, nil, CHANNOBLK},
 	};
 	for(;;){
 		switch(alt(a)){
@@ -105,13 +99,22 @@ threadmain(int argc, char **argv)
 			switch(r){
 			case Kdel:
 			case 'q': threadexitsall(nil);
-			case Kfire: break;
-			case K↑: break;
-			case K↓: break;
-			case K←: break;
-			case K→: break;
+			case 'x': r = Kfire; break;
+			case Kup: r = K↑; break;
+			case Kdown: r = K↓; break;
+			case Kleft: r = K←; break;
+			case Kright: r = K→; break;
+			default: r = -1; break;
 			}
+			if(r != -1 && input != nil)
+				input(r);
 			break;
 		}
+		if(step != nil){
+			advclock();
+			step();
+		}
+		a[Aend].op = step == nil ? CHANEND : CHANNOBLK;
+		sleep(1);
 	}
 }
