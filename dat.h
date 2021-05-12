@@ -58,11 +58,11 @@ struct Pic{
 extern Pic pics[PCend], canvas;
 
 enum{
-	DShip = 0xbb0000ff,
-	DHud1 = 0x313131ff,
-	DHud2 = 0x808591ff,
-	DFace = 0x323232ff,
-	DAmmo = 0x828282ff,
+	DShip = 0xffbb0000,
+	DHud1 = 0xff313131,
+	DHud2 = 0xff808591,
+	DFace = 0xff323232,
+	DAmmo = 0xff828282,
 };
 
 extern void (*step)(void);

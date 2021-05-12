@@ -9,7 +9,6 @@ u32int *pal;
 Pic pics[PCend], canvas;
 
 static u32int fb[Vw * Vfullh];
-
 static int scale, fbsz;
 static Rectangle fbsr;
 static Image *fbs;
@@ -18,10 +17,47 @@ static u32int *fbsbuf;
 void
 scrollpic(Pic *pp, int Δx)
 {
-	// FIXME: scroll pic into canvas
-	// scrollpic(&pics[PCspace], tc / scrollΔtc % pics[PCspace].w);
-	// instead we just pass tc / scrollΔtc and do MOD here with pp->w
-	USED(pp,Δx);
+	int h, w;
+	u32int *s, *d;
+
+	d = canvas.p;
+	s = pp->p + Δx % pp->w;
+	for(h=0; h<canvas.h; h++){
+		for(w=0; w<canvas.w; w++){
+			if(*s >> 24)
+				*d = *s;
+			d++, s++;
+		}
+		s += pp->w - canvas.w;
+	}
+}
+
+void
+drawpic(int x, int y, Pic *pp)
+{
+	int w, pw;
+	u32int *d, *s, *e;
+
+	d = fb + Vw * y + x;
+	s = pp->p;
+	pw = pp->w;
+	e = s + pw * pp->h;
+	while(s < e){
+		for(w=0; w<pw; w++){
+			if(*s >> 24)
+				*d = *s;
+			d++, s++;
+		}
+		d += Vw - pw;
+	}
+}
+
+void
+drawsubstr(int x, int y, char *s, char *e)
+{
+	// FIXME
+	USED(x,y,s,e);
+	//use a drawsubpic?
 }
 
 void
@@ -32,31 +68,26 @@ drawstr(int x, int y, char *s)
 }
 
 void
-drawsubstr(int x, int y, char *s, char *e)
+drawrect(int x, int y, int w, int h, u32int col)
 {
-	// FIXME
-	USED(x,y,s,e);
-}
+	int n;
+	u32int *d;
 
-void
-drawline(int x, int y, int w, int h, u32int col)
-{
-	// FIXME
-	USED(x,y,w,h,col);
-}
-
-void
-drawpic(int x, int y, Pic *pp)
-{
-	// FIXME: draw pp at x,y
-	USED(x,y,pp);
+	d = fb + Vw * y + x;
+	while(h-- > 0){
+		for(n=0; n<w; n++)
+			*d++ = col;
+		d += Vw - w;
+	}
 }
 
 void
 drawfill(u32int col)
 {
-	// FIXME: fill window/vis area/rect with color
-	USED(col);
+	u32int *p;
+
+	for(p=fb; p<fb+nelem(fb); p++)
+		*p = col;
 }
 
 static void
@@ -91,7 +122,7 @@ drawfb(void)
 	Rectangle r;
 
 	if(scale == 1){
-		loadimage(fbs, fbs->r, (uchar*)fb, fbsz);
+		loadimage(fbs, fbs->r, (uchar*)fb, sizeof fb);
 		draw(screen, fbsr, fbs, nil, ZP);
 	}else{
 		drawscaled();

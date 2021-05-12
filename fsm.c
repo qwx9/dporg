@@ -30,12 +30,13 @@ advclock(void)
 }
 
 void
-setfsm(void (*stepfn)(void), void (*inputfn)(Rune))
+setfsm(void (*stepfn)(void), void (*inputfn)(Rune), int clear)
 {
 	step = stepfn;
 	input = inputfn;
 	t0 = nsec();
-	tc = 0;
+	if(clear)
+		tc = 0;
 }
 
 void

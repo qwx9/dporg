@@ -44,23 +44,23 @@ drawtarget(void)
 {
 	int x, y;
 
-	x = Vcenterx + tc / TshipΔx;
+	x = canvmidx + tc / TshipΔx;
 	y = Vcentery + 22 - tc / TshipΔy;
-	drawline(x, y - 1, 10, 1, DShip);
-	drawline(x + 4, canvmidy, 1, y - canvmidy - 1, DShip);
-	drawline(x, y + 9, 10, 1, DShip);
-	drawline(x + 4, y + 9, 1, canvmidy + canvas.h - y - 9, DShip);
+	drawrect(x, y - 1, 10, 1, DShip);
+	drawrect(x + 4, canvmidy, 1, y - canvmidy - 1, DShip);
+	drawrect(x, y + 9, 10, 1, DShip);
+	drawrect(x + 4, y + 9, 1, canvmidy + canvas.h - y - 9, DShip);
 	if(x - 1 > canvmidx)
-		drawline(x - 1, y, 1, 10, DShip);
-	drawline(canvmidx, y + 4, x - 1 - canvmidx + canvas.w, 1, DShip);
-	drawline(x + 9, y, 1, 9, DShip);
-	drawline(x + 9, y + 4, canvmidx + canvas.w - x - 9, 1, DShip);
+		drawrect(x - 1, y, 1, 10, DShip);
+	drawrect(canvmidx, y + 4, x - 1 - canvmidx, 1, DShip);
+	drawrect(x + 9, y, 1, 9, DShip);
+	drawrect(x + 9, y + 4, canvmidx + canvas.w - x - 9, 1, DShip);
 }
 
 static void
 drawship(void)
 {
-	drawpic(Vcenterx + tc / TshipΔx, Vh / 2 + 22 - tc / TshipΔy, &pics[PCship]);
+	drawpic(canvmidx + tc / TshipΔx, Vh / 2 + 22 - tc / TshipΔy, &pics[PCship]);
 }
 
 static void
@@ -155,17 +155,17 @@ introkey(Rune k)
 	if(stri < strlen(curstr))
 		stri = strlen(curstr);
 	else if(step == intro1step){
-		setfsm(intro2step, introkey);
+		setfsm(intro2step, introkey, 0);
 		curstr = basestr[BSintro2];
 		stri = 0;
 		steptc = 0;
 	}else if(step == intro2step){
-		setfsm(intro3step, introkey);
+		setfsm(intro3step, introkey, 1);
 		scrollΔtc = Tbg2scroll;
 		scroll2Δtc = Tbg1scroll;
 		steptc = 0;
 	}else if(step == intro3step){
-		setfsm(intro4step, introkey);
+		setfsm(intro4step, introkey, 1);
 		curstr = basestr[BSintro3];
 		prompt = basestr[BScontinue];
 		promptΔx = 8 - 4;
@@ -183,7 +183,7 @@ enterintro(void)
 	canvas.h = pics[PCplanets].h;
 	canvmidx = Vcenterx - canvas.w / 2;
 	canvmidy = Vcentery - canvas.h / 2;
-	setfsm(intro1step, introkey);
+	setfsm(intro1step, introkey, 1);
 	curstr = basestr[BSintro1];
 	prompt = basestr[BSmore];
 	promptΔx = 36 - 30;
