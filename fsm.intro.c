@@ -79,8 +79,6 @@ drawgrid(void)
 static void
 drawintrostr(void)
 {
-	if(stri < strlen(curstr))
-		stri = tc / txtΔt;
 	drawsubstr(canvmidx, canvmidy, curstr, curstr+stri);
 }
 
@@ -116,10 +114,12 @@ intro3step(void)
 static void
 scrollstep(void)
 {
-	int tc₁, tc₂;
+	static int tc₁, tc₂;
 
 	if(tc < steptc)
 		return;
+	if(tc >= tc₂ && stri < strlen(curstr))
+		stri++;
 	drawbg();
 	drawintrostr();
 	drawprompt();

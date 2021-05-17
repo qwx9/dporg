@@ -11,6 +11,8 @@ enum{
 	Vcentery = Vh / 2,
 	Vfntw = 7,
 	Vfnth = 12,
+	Vfntspc = 1,
+	Vfntpicw = Vfntspc+Vfntw+Vfntspc,
 
 	Kfire = 0,
 	K↑,
@@ -34,7 +36,6 @@ extern int npal;
 extern u32int *pal;
 
 enum{
-	PCfont,
 	PCarrow,
 	PCspace,
 	PCgrid,
@@ -56,6 +57,10 @@ struct Pic{
 	int h;
 };
 extern Pic pics[PCend], canvas;
+extern nfontmap;
+extern uchar *fontmap;
+extern int nglyph;
+extern Pic *dfont;
 
 enum{
 	DShip = 0xffbb0000,

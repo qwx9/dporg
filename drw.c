@@ -11,24 +11,32 @@ Pic pics[PCend], canvas;
 static u32int fb[Vw * Vfullh];
 static int scale, fbsz;
 static Rectangle fbsr;
-static Image *fbs;
+static Image *fbs, *bgcol;
 static u32int *fbsbuf;
 
 void
 scrollpic(Pic *pp, int Δx)
 {
-	int h, w;
-	u32int *s, *d;
+	int h, x, Δs;
+	u32int *s, *d, *e;
 
 	d = canvas.p;
-	s = pp->p + Δx % pp->w;
+	Δx %= pp->w;
+	s = pp->p + Δx;
+	x = (canvas.w + Δx) - pp->w;
+	Δs = pp->w - canvas.w;
+	if(x > 0)
+		Δs += pp->w;
 	for(h=0; h<canvas.h; h++){
-		for(w=0; w<canvas.w; w++){
+		for(x=Δx, e=d+canvas.w; d<e; d++, s++){
 			if(*s >> 24)
 				*d = *s;
-			d++, s++;
+			if(x++ == pp->w){
+				s -= pp->w;
+				x = 0;
+			}
 		}
-		s += pp->w - canvas.w;
+		s += Δs;
 	}
 }
 
@@ -38,6 +46,7 @@ drawpic(int x, int y, Pic *pp)
 	int w, pw;
 	u32int *d, *s, *e;
 
+	assert(x < Vw && y < Vh);
 	d = fb + Vw * y + x;
 	s = pp->p;
 	pw = pp->w;
@@ -55,16 +64,37 @@ drawpic(int x, int y, Pic *pp)
 void
 drawsubstr(int x, int y, char *s, char *e)
 {
-	// FIXME
-	USED(x,y,s,e);
-	//use a drawsubpic?
+	int c, w, h, px, py;
+
+	w = dfont[0].w;
+	h = dfont[0].h;
+	x += Vfntspc;
+	for(px=x, py=y; s<e; s++){
+		c = *s;
+		if(c == '\n'){
+			px = x;
+			py += h;
+			if(py >= Vh - h)
+				sysfatal("drawsubstr: drawing string past screen: %s at %d,%d", s, x, y);
+			continue;
+		}else if(c < fontmap[0])
+			goto skip;
+		/* FIXME: characters >128 */
+		c -= fontmap[0];
+		if(c > nglyph)
+			sysfatal("drawsubstr: invalid glyph index %d (nglyph %d)", c, nglyph);
+		drawpic(px, py, &dfont[c]);
+	skip:
+		px += w;
+		if(px >= Vw - w)
+			sysfatal("drawsubstr: drawing string past screen: %s at %d,%d", s, x, y);
+	}
 }
 
 void
 drawstr(int x, int y, char *s)
 {
-	// FIXME
-	USED(x,y,s);
+	drawsubstr(x, y, s, s+strlen(s));
 }
 
 void
@@ -160,7 +190,7 @@ resetfb(int paint)
 	fbsbuf = nil;
 	if(scale != 1)
 		fbsbuf = emalloc(fbsz);
-	draw(screen, screen->r, display->black, nil, ZP);
+	draw(screen, screen->r, bgcol, nil, ZP);
 	if(paint)
 		drawfb();
 	else
@@ -173,5 +203,7 @@ initfb(void)
 	if(initdraw(nil, nil, "dporg") < 0)
 		sysfatal("initdraw: %r");
 	loadpics();
+	if((bgcol = allocimage(display, Rect(0,0,1,1), XRGB32, 1, 0xccccccff)) == nil)
+		sysfatal("allocimage: %r");
 	resetfb(0);
 }

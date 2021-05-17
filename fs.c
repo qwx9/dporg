@@ -7,6 +7,10 @@
 
 s32int sintab[256];
 char **basestr;
+int nfontmap;
+uchar *fontmap;
+int nglyph;
+Pic *dfont;
 
 static Biobuf *
 eopen(char *s, int mode)
@@ -24,6 +28,20 @@ eread(Biobuf *bf, void *buf, long n)
 {
 	if(Bread(bf, buf, n) != n)
 		sysfatal("ebread: short read: %r");
+	return n;
+}
+
+static vlong
+bsize(Biobuf *bf)
+{
+	vlong n;
+	Dir *d;
+
+	d = dirfstat(Bfildes(bf));
+	if(d == nil)
+		sysfatal("bstat: %r");
+	n = d->length;
+	free(d);
 	return n;
 }
 
@@ -99,10 +117,38 @@ loadpic(char *name, Pic *pic)
 	free(b);
 }
 
+static void
+loadfont(void)
+{
+	int i, n, nx, ny;
+	u32int *d, *s;
+	Pic pic, *pp;
+
+	loadpic("a.bit", &pic);
+	nx = pic.w / Vfntpicw;
+	ny = pic.h / Vfnth;
+	if(pic.w % nx != 0 || pic.h % ny != 0)
+		sysfatal("loadfont: invalid font pic");
+	nglyph = nx * ny;
+	dfont = emalloc(nglyph * sizeof *dfont);
+	for(i=0, pp=dfont; pp<dfont+nglyph; pp++, i++){
+		pp->w = Vfntw;
+		pp->h = Vfnth;
+		pp->p = emalloc(pp->w * pp->h * sizeof *pp->p);
+		d = pp->p;
+		s = pic.p + i / nx * pic.w * pp->h + i % nx * Vfntpicw + Vfntspc;
+		for(n=0; n<pp->h; n++){
+			memcpy(d, s, pp->w * sizeof *d);
+			d += pp->w;
+			s += pic.w;
+		}
+	}
+	free(pic.p);
+}
+
 void
 loadpics(void)
 {
-	loadpic("a.bit", pics + PCfont);
 	loadpic("b.bit", pics + PCarrow);
 	loadpic("c.bit", pics + PCspace);
 	loadpic("d.bit", pics + PCgrid);
@@ -116,6 +162,7 @@ loadpics(void)
 	loadpic("p.bit", pics + PCcur);
 	loadpic("q.bit", pics + PCscroll);
 	loadpic("r.bit", pics + PCgibs);
+	loadfont();
 	canvas.p = emalloc(Vw * Vfullh * sizeof *canvas.p);
 	canvas.w = Vw;
 	canvas.h = Vfullh;
@@ -171,6 +218,20 @@ loadstr(char *name, int *nel)
 }
 
 static void
+loadfontmap(void)
+{
+	int n;
+	Biobuf *bf;
+
+	bf = eopen("a.map", OREAD);
+	n = bsize(bf);
+	fontmap = emalloc(n * sizeof *fontmap);
+	eread(bf, fontmap, n);
+	nfontmap = n;
+	Bterm(bf);
+}
+
+static void
 loadbasestr(void)
 {
 	int nel;
@@ -201,6 +262,7 @@ initfs(void)
 	loadsintab();
 	loadpal();
 	loadbasestr();
+	loadfontmap();
 }
 
 // grids: 32/256/2048
@@ -211,6 +273,3 @@ initfs(void)
 // entities.str
 // mappings.bin
 // map bsp + str (on demand, with shim load gauge)
-// a.map
-// base.str
-// + old project code
