@@ -11,6 +11,8 @@ int nfontmap;
 uchar *fontmap;
 int nglyph;
 Pic *dfont;
+int nwalls;
+Wall *walls;
 
 static Biobuf *
 eopen(char *s, int mode)
@@ -218,6 +220,45 @@ loadstr(char *name, int *nel)
 }
 
 static void
+loadwalls(void)
+{
+	int i, j, n, v;
+	Biobuf *bf;
+	Wall *w, *we;
+	u32int *p;
+
+	bf = eopen("wtexels.bin", OREAD);
+	n = get32(bf) / (Wallsz * Wtexelsz);
+	walls = emalloc(n * sizeof *walls);
+	nwalls = n;
+	for(w=walls, we=w+n; w<we; w++){
+		for(i=0; i<Wallsz; i++){
+			p = w->p + i;
+			for(j=0; j<Wtexelsz; j++){
+				v = get8(bf);
+				*p = v & 15;
+				p += Wallsz;
+				*p = v >> 4 & 15;
+				p += Wallsz;
+			}
+		}
+		char name[32], c[9];
+		snprint(name, sizeof name, "wall%02zd.bit", w-walls);
+		int fd;
+		if((fd = create(name, OWRITE, 0644)) < 0)
+			sysfatal("shit %r");
+		fprint(fd, "%11s %11d %11d %11d %11d ",
+			chantostr(c, GREY8), 0, 0, 64, 64);
+		for(n=0; n<Wallsz*Wallsz; n++){
+			c[0] = w->p[n] & 0xff;
+			write(fd, c, 1);
+		}
+		close(fd);
+	}
+	Bterm(bf);
+}
+
+static void
 loadfontmap(void)
 {
 	int n;
@@ -263,13 +304,5 @@ initfs(void)
 	loadpal();
 	loadbasestr();
 	loadfontmap();
+	loadwalls();
 }
-
-// grids: 32/256/2048
-// wtexels.bin
-// stexels.bin
-// bitshapes.bin
-// entities.db
-// entities.str
-// mappings.bin
-// map bsp + str (on demand, with shim load gauge)

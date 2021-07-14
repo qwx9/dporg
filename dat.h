@@ -1,3 +1,4 @@
+typedef struct Wall Wall;
 typedef struct Pic Pic;
 
 extern char *prefix;
@@ -13,6 +14,9 @@ enum{
 	Vfnth = 12,
 	Vfntspc = 1,
 	Vfntpicw = Vfntspc+Vfntw+Vfntspc,
+
+	Wallsz = 64,
+	Wtexelsz = Wallsz / 2,
 
 	Kfire = 0,
 	K↑,
@@ -34,6 +38,12 @@ extern char **basestr;
 
 extern int npal;
 extern u32int *pal;
+
+struct Wall{
+	u32int p[Wallsz*Wallsz];
+};
+extern Wall *walls;
+extern int nwalls;
 
 enum{
 	PCarrow,
