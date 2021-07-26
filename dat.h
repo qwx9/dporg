@@ -1,5 +1,6 @@
 typedef struct Wall Wall;
 typedef struct Pic Pic;
+typedef struct Sprite Sprite;
 
 extern char *prefix;
 
@@ -71,6 +72,13 @@ extern nfontmap;
 extern uchar *fontmap;
 extern int nglyph;
 extern Pic *dfont;
+
+struct Sprite{
+	Pic;
+	Rectangle r;
+};
+extern Sprite *sprites;
+extern int nsprite;
 
 enum{
 	DShip = 0xffbb0000,

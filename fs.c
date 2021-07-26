@@ -220,6 +220,142 @@ loadstr(char *name, int *nel)
 }
 
 static void
+unpackspr(Sprite *s, Biobuf *btex, Biobuf *bshp)
+{
+	int n, B, b, i, v;
+	u32int *p;
+
+	v = -1;
+	for(i=0; i<s->w; i++){
+		p = s->p + i;
+		n = s->h;
+		while(n > 0){
+			B = n > 8 ? 8 : n;
+			n -= B;
+			b = get8(bshp);
+			while(B > 0){
+				if(b & 1){
+					if(v >= 0){
+						*p = v & 15;
+						v = -1;
+					}else{
+						v = get8(btex);
+						*p = v & 15;
+						v >>= 4;
+					}
+				}else
+					*p = -1;
+				p += s->w;
+				b >>= 1;
+				B--;
+			}
+		}
+	}
+}
+
+static int
+loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
+{
+	int nbuf, nspan, spansz, bshpsz, bsize, *ofsbuf, *o;
+	Biobuf *btex, *bshp;
+	Sprite *s, *buf;
+
+	btex = eopen("stexels.bin", OREAD);
+	get32(btex);
+	bshp = eopen("bitshapes.bin", OREAD);
+	bshpsz = get32(bshp);
+	nbuf = 0;
+	buf = nil;
+	s = nil;
+	ofsbuf = nil;
+	o = nil;
+	while(bshpsz > 0){
+		if(s >= buf + nbuf){
+			buf = erealloc(buf, (nbuf+32) * sizeof *buf,
+				nbuf * sizeof *buf);
+			ofsbuf = erealloc(ofsbuf, (nbuf+32) * sizeof *ofsbuf,
+				nbuf * sizeof *ofsbuf);
+			s = buf + nbuf;
+			o = ofsbuf + nbuf;
+			nbuf += 32;
+		}
+		get16(bshp);
+		get16(bshp);
+		bsize = get16(bshp) + 8;
+		get16(bshp);
+		s->r.min.x = get8(bshp);
+		s->r.max.x = get8(bshp);
+		s->r.min.y = get8(bshp);
+		s->r.max.y = get8(bshp);
+		nspan = Dx(s->r) + 1;
+		spansz = Dy(s->r) + 1;
+		s->w = nspan;
+		s->h = spansz;
+		s->p = emalloc(s->w * s->h * sizeof *s->p);
+		unpackspr(s, btex, bshp);
+		s++;
+		*o++ = bsize;
+		bshpsz -= bsize;
+	}
+	if(bshpsz != 0){
+		werrstr("sprite data and shape mismatch by %d bytes", bshpsz);
+		return -1;
+	}
+	*sbuf = buf;
+	*nsbuf = s - buf;
+	*shpofs = ofsbuf;
+	Bterm(btex);
+	Bterm(bshp);
+	return 0;
+}
+
+static int
+gencolorspr(Sprite *sbuf, int *shpofs)
+{
+	int n, ofs;
+	Biobuf *bf;
+
+	bf = eopen("mappings.bin", OREAD);
+	ofs = get32(bf);
+	n = get32(bf);
+	get32(bf);
+	get32(bf);
+	Bseek(bf, ofs, 1);
+
+
+/*
+	n records
+	spr = get32(bf);	bitshapes OFS-4 (hdr) → match from shpofs
+	pal = get32(bf);	pal OFS-4 (hdr); pal index = OFS / 16	(16color pals)
+	print all spr first
+
+	FIXME: same for walls
+*/
+
+	USED(shpofs, sbuf, n);
+	Bterm(bf);
+	return 0;
+}
+
+static void
+loadsprites(void)
+{
+	int nbuf, *shpofs;
+	Sprite *sbuf, *s;
+
+	sbuf = nil;
+	nbuf = 0;
+	shpofs = nil;
+	if(loadblankspr(&sbuf, &nbuf, &shpofs) < 0
+	|| gencolorspr(sbuf, shpofs) < 0)
+		sysfatal("loadsprites: %r");
+	for(s=sbuf; s<sbuf+nbuf; s++)
+		free(s->p);
+	free(sbuf);
+	free(shpofs);
+}
+
+static void
 loadwalls(void)
 {
 	int i, j, n, v;
@@ -242,18 +378,6 @@ loadwalls(void)
 				p += Wallsz;
 			}
 		}
-		char name[32], c[9];
-		snprint(name, sizeof name, "wall%02zd.bit", w-walls);
-		int fd;
-		if((fd = create(name, OWRITE, 0644)) < 0)
-			sysfatal("shit %r");
-		fprint(fd, "%11s %11d %11d %11d %11d ",
-			chantostr(c, GREY8), 0, 0, 64, 64);
-		for(n=0; n<Wallsz*Wallsz; n++){
-			c[0] = w->p[n] & 0xff;
-			write(fd, c, 1);
-		}
-		close(fd);
 	}
 	Bterm(bf);
 }
@@ -305,4 +429,5 @@ initfs(void)
 	loadbasestr();
 	loadfontmap();
 	loadwalls();
+	loadsprites();
 }

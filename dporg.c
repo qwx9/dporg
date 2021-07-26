@@ -1,5 +1,6 @@
 #include <u.h>
 #include <libc.h>
+#include <pool.h>
 #include <thread.h>
 #include <draw.h>
 #include <mouse.h>
@@ -63,6 +64,7 @@ threadmain(int argc, char **argv)
 	case 'm': prefix = EARGF(usage()); break;
 	default: usage();
 	}ARGEND
+	mainmem->flags |= POOL_PARANOIA | POOL_NOREUSE;
 	initfs();
 	initfb();
 	if((kc = initkeyboard(nil)) == nil)
