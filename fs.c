@@ -13,6 +13,8 @@ int nglyph;
 Pic *dfont;
 int nwalls;
 Wall *walls;
+int nsprites;
+Sprite *sprites;
 
 static Biobuf *
 eopen(char *s, int mode)
@@ -284,7 +286,7 @@ dumpbwspr(Sprite *sbuf, int nbuf)
 	for(s=sbuf; s<sbuf+nbuf; s++){
 		snprint(name, sizeof name, "spr%02zd.bit", s-sbuf);
 		if((fd = create(name, OWRITE, 0644)) < 0)
-			sysfatal("dumpspr: %r");
+			sysfatal("dumpbwspr: %r");
 		fprint(fd, "%11s %11d %11d %11d %11d ",
 			chantostr(c, GREY8), 0, 0, s->w, s->h);
 		for(n=0; n<s->w*s->h; n++){
@@ -295,10 +297,42 @@ dumpbwspr(Sprite *sbuf, int nbuf)
 	}
 }
 
+static void
+dumpspr(Sprite *sbuf, int nbuf)
+{
+	int fd;
+	char name[32], c[9];
+	Sprite *s;
+
+	for(s=sbuf; s<sbuf+nbuf; s++){
+		snprint(name, sizeof name, "spr%02zd.bit", s-sbuf);
+		if((fd = create(name, OWRITE, 0644)) < 0)
+			sysfatal("dumpspr: %r");
+		fprint(fd, "%11s %11d %11d %11d %11d ",
+			chantostr(c, ARGB32), 0, 0, s->w, s->h);
+		write(fd, s->p, s->w * s->h * sizeof *s->p);
+		close(fd);
+	}
+}
+
+static void
+dumppal(void)
+{
+	int fd;
+	char name[32], c[9];
+
+	snprint(name, sizeof name, "pal.bit");
+	if((fd = create(name, OWRITE, 0644)) < 0)
+		sysfatal("dumppal: %r");
+	fprint(fd, "%11s %11d %11d %11d %11d ", chantostr(c, ARGB32), 0, 0, 16, npal/16);
+	write(fd, pal, npal * sizeof *pal);
+	close(fd);
+}
+
 static int
 loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
 {
-	int nbuf, nspan, spansz, bshpsz, bsize, *ofsbuf, *o;
+	int nbuf, nspan, spansz, bshpsz, bsize, ofs, *ofsbuf, *o;
 	Biobuf *btex, *bshp;
 	Sprite *s, *buf;
 
@@ -311,6 +345,7 @@ loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
 	s = nil;
 	ofsbuf = nil;
 	o = nil;
+	ofs = 0;
 	while(bshpsz > 0){
 		if(s >= buf + nbuf){
 			buf = erealloc(buf, (nbuf+32) * sizeof *buf,
@@ -336,7 +371,8 @@ loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
 		s->p = emalloc(s->w * s->h * sizeof *s->p);
 		unpackspr(s, btex, bshp);
 		s++;
-		*o++ = bsize;
+		*o++ = ofs;
+		ofs += bsize;
 		bshpsz -= bsize;
 	}
 	if(bshpsz != 0){
@@ -354,26 +390,48 @@ loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
 static int
 gencolorspr(Sprite *sbuf, int nbuf, int *shpofs)
 {
-	int n, ofs;
+	int *shp;
+	u32int n, ofs, palofs, *pp, *bp, *p;
 	Biobuf *bf;
+	Sprite *s, *bw;
 
 	bf = eopen("mappings.bin", OREAD);
-	ofs = get32(bf);
+	ofs = get32(bf) * 2 * sizeof(u32int);
 	n = get32(bf);
 	get32(bf);
 	get32(bf);
 	Bseek(bf, ofs, 1);
-
-/*
-	n records
-	spr = get32(bf);	bitshapes OFS-4 (hdr) → match from shpofs
-	pal = get32(bf);	pal OFS-4 (hdr); pal index = OFS / 16	(16color pals)
-	print all spr first
-
-	FIXME: same for walls
-*/
-
-	USED(shpofs, sbuf, nbuf, n);
+	sprites = emalloc(n * sizeof *sprites);
+	nsprites = n;
+	for(s=sprites; s<sprites+nsprites; s++){
+		ofs = get32(bf);
+		palofs = get32(bf);
+		if(palofs >= npal){
+			werrstr("gencolorspr: invalid palette index %ud", palofs);
+			return -1;
+		}
+		for(shp=shpofs; shp<shpofs+nbuf; shp++)
+			if(*shp == ofs)
+				break;
+		if(shp >= shpofs+nbuf){
+			werrstr("gencolorspr: invalid bitshapes offset %ud", ofs);
+			return -1;
+		}
+		bw = sbuf + (shp - shpofs);
+		pp = pal + palofs;
+		memcpy(s, bw, sizeof *s);
+		s->p = emalloc(s->w * s->h * sizeof *s->p);
+		for(p=s->p, bp=bw->p; p<s->p+s->w*s->h; p++, bp++){
+			n = *bp;
+			if(n == -1UL)
+				*p = 0;
+			else if(n > Npalcol){
+				werrstr("gencolor: invalid palette color index %ud", n);
+				return -1;
+			}else
+				*p = pp[n];
+		}
+	}
 	Bterm(bf);
 	return 0;
 }

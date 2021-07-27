@@ -16,6 +16,7 @@ enum{
 	Vfntspc = 1,
 	Vfntpicw = Vfntspc+Vfntw+Vfntspc,
 
+	Npalcol = 16,
 	Wallsz = 64,
 	Wtexelsz = Wallsz / 2,
 
@@ -78,7 +79,7 @@ struct Sprite{
 	Rectangle r;
 };
 extern Sprite *sprites;
-extern int nsprite;
+extern int nsprites;
 
 enum{
 	DShip = 0xffbb0000,
