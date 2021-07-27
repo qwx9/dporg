@@ -253,6 +253,48 @@ unpackspr(Sprite *s, Biobuf *btex, Biobuf *bshp)
 	}
 }
 
+static void
+dumpbwwalls(Wall *wbuf, int nbuf)
+{
+	int n, fd;
+	char name[32], c[9];
+	Wall *w;
+
+	for(w=wbuf; w<wbuf+nbuf; w++){
+		snprint(name, sizeof name, "wall%02zd.bit", w-walls);
+		if((fd = create(name, OWRITE, 0644)) < 0)
+			sysfatal("dumpbwwalls: %r");
+		fprint(fd, "%11s %11d %11d %11d %11d ",
+			chantostr(c, GREY8), 0, 0, Wallsz, Wallsz);
+		for(n=0; n<nelem(w->p); n++){
+			c[0] = w->p[n] & 0xff;
+			write(fd, c, 1);
+		}
+		close(fd);
+	}
+}
+
+static void
+dumpbwspr(Sprite *sbuf, int nbuf)
+{
+	int n, fd;
+	char name[32], c[9];
+	Sprite *s;
+
+	for(s=sbuf; s<sbuf+nbuf; s++){
+		snprint(name, sizeof name, "spr%02zd.bit", s-sbuf);
+		if((fd = create(name, OWRITE, 0644)) < 0)
+			sysfatal("dumpspr: %r");
+		fprint(fd, "%11s %11d %11d %11d %11d ",
+			chantostr(c, GREY8), 0, 0, s->w, s->h);
+		for(n=0; n<s->w*s->h; n++){
+			c[0] = 96 * (s->p[n] & 0xff) / 16;
+			write(fd, c, 1);
+		}
+		close(fd);
+	}
+}
+
 static int
 loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
 {
@@ -310,7 +352,7 @@ loadblankspr(Sprite **sbuf, int *nsbuf, int **shpofs)
 }
 
 static int
-gencolorspr(Sprite *sbuf, int *shpofs)
+gencolorspr(Sprite *sbuf, int nbuf, int *shpofs)
 {
 	int n, ofs;
 	Biobuf *bf;
@@ -322,7 +364,6 @@ gencolorspr(Sprite *sbuf, int *shpofs)
 	get32(bf);
 	Bseek(bf, ofs, 1);
 
-
 /*
 	n records
 	spr = get32(bf);	bitshapes OFS-4 (hdr) → match from shpofs
@@ -332,7 +373,7 @@ gencolorspr(Sprite *sbuf, int *shpofs)
 	FIXME: same for walls
 */
 
-	USED(shpofs, sbuf, n);
+	USED(shpofs, sbuf, nbuf, n);
 	Bterm(bf);
 	return 0;
 }
@@ -347,7 +388,7 @@ loadsprites(void)
 	nbuf = 0;
 	shpofs = nil;
 	if(loadblankspr(&sbuf, &nbuf, &shpofs) < 0
-	|| gencolorspr(sbuf, shpofs) < 0)
+	|| gencolorspr(sbuf, nbuf, shpofs) < 0)
 		sysfatal("loadsprites: %r");
 	for(s=sbuf; s<sbuf+nbuf; s++)
 		free(s->p);
