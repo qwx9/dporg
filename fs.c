@@ -182,6 +182,8 @@ loadpal(void)
 
 	bf = eopen("palettes.bin", OREAD);
 	npal = get32(bf) / 2;
+	if(npal % Npalcol != 0)
+		sysfatal("loadpal: invalid palette size %d\n", npal);
 	pal = emalloc(npal * sizeof *pal);
 	for(p=pal; p<pal+npal; p++){
 		n = get16(bf);
@@ -193,6 +195,7 @@ loadpal(void)
 		b = b << 3 | b >> 2;
 		*p = 0xff << 24 | r << 16 | g << 8 | b;
 	}
+	npal /= Npalcol;
 	Bterm(bf);
 }
 
@@ -324,8 +327,8 @@ dumppal(void)
 	snprint(name, sizeof name, "pal.bit");
 	if((fd = create(name, OWRITE, 0644)) < 0)
 		sysfatal("dumppal: %r");
-	fprint(fd, "%11s %11d %11d %11d %11d ", chantostr(c, ARGB32), 0, 0, 16, npal/16);
-	write(fd, pal, npal * sizeof *pal);
+	fprint(fd, "%11s %11d %11d %11d %11d ", chantostr(c, ARGB32), 0, 0, 16, npal);
+	write(fd, pal, npal * Npalcol * sizeof *pal);
 	close(fd);
 }
 
@@ -406,7 +409,7 @@ gencolorspr(Sprite *sbuf, int nbuf, int *shpofs)
 	for(s=sprites; s<sprites+nsprites; s++){
 		ofs = get32(bf);
 		palofs = get32(bf);
-		if(palofs >= npal){
+		if(palofs % Npalcol != 0 || palofs / Npalcol >= npal){
 			werrstr("gencolorspr: invalid palette index %ud", palofs);
 			return -1;
 		}
