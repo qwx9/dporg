@@ -1,6 +1,9 @@
 typedef struct Wall Wall;
 typedef struct Pic Pic;
 typedef struct Sprite Sprite;
+typedef struct Map Map;
+typedef struct Node Node;
+typedef struct Line Line;
 
 extern char *prefix;
 
@@ -88,6 +91,52 @@ enum{
 	DFace = 0xff323232,
 	DAmmo = 0xff828282,
 };
+
+struct Node{
+	int type;
+	Rectangle;
+	int split;
+	int left;
+	int right;
+};
+enum{
+	LFwall = 0<<0,
+	LFdoor = 1<<0 | 1<<2,
+	LFshiftS⋁E = 1<<3,
+	LFshiftN∨W = 1<<4,
+	LFsecret = 1<<5,
+	LFyshift = 1<<8,
+	LFxshift = 1<<9,
+	LFlock = 1<<10,
+	LFwallS = 1<<11,
+	LFwallN = 1<<12,
+	LFwallW = 1<<13,
+	LFwallE = 1<<14,
+	LFmirrored = 1<<15,
+
+	Fineshift = 3,
+};
+struct Line{
+	int flags;
+	int tex;
+	int unkn1;
+	Rectangle;
+	int minpshift;
+	int maxpshift;
+};
+struct Map{
+	int id;
+	int nnodes;
+	Node *nodes;
+	int nlines;
+	Line *lines;
+	u32int ceilc;
+	u32int floorc;
+	u32int backc;
+	int unkn1;
+	int unkn2;
+};
+extern Map map;
 
 extern void (*step)(void);
 extern void (*input)(Rune);

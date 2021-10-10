@@ -8,6 +8,7 @@ OFILES=\
 	fsm.$O\
 	fsm.intro.$O\
 	fsm.map.$O\
+	map.$O\
 
 HFILES= dat.h fns.h
 </sys/src/cmd/mkone

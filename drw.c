@@ -14,6 +14,16 @@ static Rectangle fbsr;
 static Image *fbs, *bgcol;
 static u32int *fbsbuf;
 
+Image *
+eallocimage(Rectangle r, int repl, ulong col)
+{
+	Image *i;
+
+	if((i = allocimage(display, r, XRGB32, repl, col)) == nil)
+		sysfatal("allocimage: %r");
+	return i;
+}
+
 void
 scrollpic(Pic *pp, int Δx)
 {
@@ -183,9 +193,7 @@ resetfb(int paint)
 	fbsr = Rpt(subpt(o, p), addpt(o, p));
 	fbsz = Vw * Vfullh * scale * sizeof *fbsbuf;
 	freeimage(fbs);
-	if((fbs = allocimage(display, Rect(0,0,Vw*scale,scale==1? Vfullh : 1),
-		XRGB32, scale > 1, DBlack)) == nil)
-		sysfatal("allocimage: %r");
+	fbs = eallocimage(Rect(0,0,Vw*scale,scale==1? Vfullh : 1), scale > 1, DBlack);
 	free(fbsbuf);
 	fbsbuf = nil;
 	if(scale != 1)
@@ -203,7 +211,6 @@ initfb(void)
 	if(initdraw(nil, nil, "dporg") < 0)
 		sysfatal("initdraw: %r");
 	loadpics();
-	if((bgcol = allocimage(display, Rect(0,0,1,1), XRGB32, 1, 0xccccccff)) == nil)
-		sysfatal("allocimage: %r");
+	bgcol = eallocimage(Rect(0,0,1,1), 1, 0xccccccff);
 	resetfb(0);
 }

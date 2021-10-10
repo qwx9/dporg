@@ -509,6 +509,103 @@ loadbasestr(void)
 }
 
 static void
+dumplines(Map *m)
+{
+	int fd;
+	Image *i;
+	Line *l;
+
+	assert(display != nil);
+	i = eallocimage(Rect(0,0,256<<3,256<<3), 0, DBlack);
+	for(l=m->lines; l<m->lines+m->nlines; l++)
+		line(i, l->min, l->max, 0, Endarrow, 0, display->white, ZP);
+	if((fd = create("lines.bit", OWRITE, 0664)) < 0)
+		sysfatal("create: %r");
+	if(writeimage(fd, i, 0) < 0)
+		sysfatal("writeimage: %r");
+	freeimage(i);
+	close(fd);
+}
+
+void
+debugmap(void)
+{
+	dumplines(&map);
+}
+
+static void
+loadbsp(Biobuf *bf, Map *m)
+{
+	Node *n;
+
+	m->nnodes = get16(bf);
+	m->nodes = emalloc(m->nnodes * sizeof *m->nodes);
+	for(n=m->nodes; n<m->nodes+m->nnodes; n++){
+		n->min.x = get8(bf) << Fineshift;
+		n->min.y = get8(bf) << Fineshift;
+		n->max.x = get8(bf) << Fineshift;
+		n->max.y = get8(bf) << Fineshift;
+		n->type = get8(bf);
+		n->split = get8(bf) << Fineshift;
+		n->left = get16(bf);
+		n->right = get16(bf);
+	}
+}
+
+static void
+loadlines(Biobuf *bf, Map *m)
+{
+	Line *l;
+
+	m->nlines = get16(bf);
+	m->lines = emalloc(m->nlines * sizeof *m->lines);
+	for(l=m->lines; l<m->lines+m->nlines; l++){
+		l->min.x = get8(bf) << Fineshift;
+		l->min.y = get8(bf) << Fineshift;
+		l->max.x = get8(bf) << Fineshift;
+		l->max.y = get8(bf) << Fineshift;
+		l->tex = get16(bf);	/* FIXME: actual Wall* */
+		l->flags = get16(bf);
+		if(l->flags & LFmirrored)
+			l->minpshift = max(Dx(l->Rectangle), Dy(l->Rectangle));
+		else
+			l->maxpshift = max(Dx(l->Rectangle), Dy(l->Rectangle));
+		if(l->flags & (LFxshift | LFshiftS⋁E))
+			l->Rectangle = rectaddpt(l->Rectangle, Pt(3,0));
+		else if(l->flags & (LFxshift | LFshiftN∨W))
+			l->Rectangle = rectsubpt(l->Rectangle, Pt(3,0));
+		else if(l->flags & (LFyshift | LFshiftS⋁E))
+			l->Rectangle = rectaddpt(l->Rectangle, Pt(0,3));
+		else if(l->flags & (LFyshift | LFshiftN∨W))
+			l->Rectangle = rectsubpt(l->Rectangle, Pt(0,3));
+		/* FIXME: no way to know why until we properly process walls to dump them */
+		if(l->tex == 7){ }	/* FIXME */
+	}
+}
+
+static void
+loadmap(char *name)
+{
+	Biobuf *bf;
+	Map *m;
+
+	bf = eopen(name, OREAD);
+	m = &map;
+	m->ceilc = 0xff << 24 | get24(bf);
+	m->floorc = 0xff << 24 | get24(bf);
+	m->backc = 0xff << 24 | get24(bf);
+	m->id = get8(bf);
+	m->unkn1 = get16(bf);
+	m->unkn2 = get8(bf);
+	loadbsp(bf, m);
+	loadlines(bf, m);
+
+	/* FIXME: things, events, commands */
+
+	Bterm(bf);
+}
+
+static void
 loadsintab(void)
 {
 	Biobuf *bf;
@@ -530,6 +627,8 @@ initfs(void)
 	loadpal();
 	loadbasestr();
 	loadfontmap();
+	// FIXME: walls: same processing as sprites
 	loadwalls();
 	loadsprites();
+	loadmap("intro.bsp");
 }
