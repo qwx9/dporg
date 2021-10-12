@@ -509,6 +509,74 @@ loadbasestr(void)
 }
 
 static void
+dumpbspnodes(Map *m)
+{
+	int ni, fd;
+	char path[64], s[32];
+	Point p;
+	Font *f;
+	Image *i, *b, *c, *o;
+	Line *l, *le;
+	Node *n;
+
+	assert(display != nil);
+	b = eallocimage(Rect(0,0,256<<2,256<<2), 0, DBlack);
+	i = eallocimage(b->r, 0, DNofill);
+	c = eallocimage(Rect(0,0,1,1), 1, DRed);
+	o = eallocimage(Rect(0,0,1,1), 1, 0x777777FF);
+	if((f = openfont(display, "/lib/font/bit/fixed/unicode.6x10.font")) == nil)
+		sysfatal("openfont: %r");
+	for(l=m->lines; l<m->lines+m->nlines; l++)
+		line(b, divpt(l->min,2), divpt(l->max,2), 0, Endarrow, 0, display->white, ZP);
+	for(n=m->nodes, ni=0; n<m->nodes+m->nnodes; n++){
+		draw(i, i->r, b, nil, ZP);
+		draw(i, Rpt(divpt(n->min,2), divpt(n->max,2)), o, nil, ZP);
+		switch(n->type){
+		case 0:
+			l = m->lines + n->right;
+			le = l + n->left;
+			for(; l<le; l++){
+				line(i, divpt(l->min,2), divpt(l->max,2), 0, Endarrow, 0, c, ZP);
+				p.x = (l->min.x + Dx(l->Rectangle) / 2) / 2;
+				p.y = (l->min.y + Dy(l->Rectangle) / 2) / 2;
+				snprint(s, sizeof s, "%zd", l - (m->lines+n->right));
+				string(i, p, c, ZP, f, s);
+			}
+			break;
+		case 1:
+			line(i, Pt(0,n->split/2), Pt(i->r.max.x,n->split/2), 0, 0, 0, c, ZP);
+			line(i, divpt(n->min,2), divpt(n->max,2), 0, Endarrow, 0, c, ZP);
+			p.x = (n->min.x + Dx(n->Rectangle) / 2) / 2;
+			p.y = (n->min.y + Dy(n->Rectangle) / 2) / 2;
+			snprint(s, sizeof s, "%zd → %d,%d", n-m->nodes, n->left, n->right);
+			string(i, p, c, ZP, f, s);
+			break;
+		case 2:
+			line(i, Pt(n->split/2,0), Pt(n->split/2,i->r.max.y), 0, 0, 0, c, ZP);
+			line(i, divpt(n->min,2), divpt(n->max,2), 0, Endarrow, 0, c, ZP);
+			p.x = (n->min.x + Dx(n->Rectangle) / 2) / 2;
+			p.y = (n->min.y + Dy(n->Rectangle) / 2) / 2;
+			snprint(s, sizeof s, "%zd → %d,%d", n-m->nodes, n->left, n->right);
+			string(i, p, c, ZP, f, s);
+			break;
+		default:
+			sysfatal("unknown node type %d\n", n->type);
+		}
+		snprint(path, sizeof path, "node%04d.bit", ni++);
+		if((fd = create(path, OWRITE, 0664)) < 0)
+			sysfatal("create: %r");
+		if(writeimage(fd, i, 0) < 0)
+			sysfatal("writeimage: %r");
+		close(fd);
+	}
+	freeimage(b);
+	freeimage(i);
+	freeimage(c);
+	freeimage(o);
+	freefont(f);
+}
+
+static void
 dumplines(Map *m)
 {
 	int fd;
@@ -525,12 +593,6 @@ dumplines(Map *m)
 		sysfatal("writeimage: %r");
 	freeimage(i);
 	close(fd);
-}
-
-void
-debugmap(void)
-{
-	dumplines(&map);
 }
 
 static void
