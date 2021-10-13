@@ -25,6 +25,8 @@ advclock(void)
 
 	t = nsec();
 	Δtc = (t - t0) / TΔ;
+	if(Δtc <= 0)
+		Δtc = 1;
 	tc += Δtc;
 	t0 += Δtc * TΔ;
 	return Δtc;
